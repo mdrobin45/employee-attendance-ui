@@ -1,13 +1,11 @@
 export interface User {
-  id: string
-  name: string
-  department: string
+   id: string;
+   name: string;
+   department: string;
 }
 
 export interface AttendanceRecord {
-  id: string
-  date: string
-  clockIn: string
-  clockOut: string
-  totalHours: string
+   employeeId: string;
+   clockIn: string;
+   clockOut?: string | null;
 }

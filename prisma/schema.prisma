@@ -18,9 +18,8 @@ model employee {
 
 model records {
   id         Int      @id @unique @default(autoincrement())
-  clockIn    String
-  clockOut   String
-  date       DateTime
+  clockIn    DateTime
+  clockOut   DateTime?
   employeeId String
   employee   employee @relation(fields: [employeeId], references: [id])
 }

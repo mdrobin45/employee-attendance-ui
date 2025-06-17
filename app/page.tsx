@@ -19,16 +19,16 @@ import {
    TableRow,
 } from "@/components/ui/table";
 import type { AttendanceRecord } from "@/lib/types";
-import { formatDate, formatTime } from "@/lib/utils";
+import { clockIn } from "@/services/attendance";
 import { Clock, LogIn, LogOut, User } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 
 export default function AttendancePage() {
+   const [currentTime, setCurrentTime] = useState(new Date());
+   const [clockedIn, setClockedIn] = useState(false);
    const [attendanceRecords, setAttendanceRecords] = useState<
       AttendanceRecord[]
    >([]);
-   const [clockedIn, setClockedIn] = useState(false);
-   const [currentTime, setCurrentTime] = useState(new Date());
 
    // Update current time every second
    useEffect(() => {
@@ -39,37 +39,15 @@ export default function AttendancePage() {
       return () => clearInterval(timer);
    }, []);
 
-   const handleClockIn = () => {
-      const now = new Date();
+   const handleClockIn = async () => {
       const newRecord: AttendanceRecord = {
-         id: String(attendanceRecords.length + 1),
-         date: formatDate(now),
-         clockIn: formatTime(now),
-         clockOut: "",
-         totalHours: "",
+         clockIn: new Date().toISOString(),
+         employeeId: "ID",
       };
 
-      setAttendanceRecords([newRecord, ...attendanceRecords]);
-      setClockedIn(true);
-   };
-
-   const handleClockOut = () => {
-      const now = new Date();
-      const updatedRecords = [...attendanceRecords];
-      const todayRecord = updatedRecords[0];
-
-      if (todayRecord && !todayRecord.clockOut) {
-         const clockInTime = new Date(
-            `${todayRecord.date}T${todayRecord.clockIn}`
-         );
-         const diffMs = now.getTime() - clockInTime.getTime();
-         const diffHrs = diffMs / (1000 * 60 * 60);
-
-         todayRecord.clockOut = formatTime(now);
-         todayRecord.totalHours = diffHrs.toFixed(2);
-
-         setAttendanceRecords(updatedRecords);
-         setClockedIn(false);
+      const response = await clockIn(newRecord);
+      if (response) {
+         setClockedIn(true);
       }
    };
 
@@ -131,7 +109,7 @@ export default function AttendancePage() {
                            size="lg"
                            variant={clockedIn ? "default" : "outline"}
                            className="flex items-center gap-2"
-                           onClick={handleClockOut}
+                           // onClick={handleClockOut}
                            disabled={!clockedIn}>
                            <LogOut className="h-5 w-5" />
                            Clock Out
@@ -169,15 +147,13 @@ export default function AttendancePage() {
                      </TableHeader>
                      <TableBody>
                         {attendanceRecords.map((record) => (
-                           <TableRow key={record.id}>
-                              <TableCell>{record.date}</TableCell>
+                           <TableRow>
+                              <TableCell>10</TableCell>
                               <TableCell>{record.clockIn}</TableCell>
                               <TableCell>
                                  {record.clockOut || "Not clocked out"}
                               </TableCell>
-                              <TableCell className="text-right">
-                                 {record.totalHours || "-"}
-                              </TableCell>
+                              <TableCell className="text-right">10</TableCell>
                            </TableRow>
                         ))}
                      </TableBody>
