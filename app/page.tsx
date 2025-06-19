@@ -18,17 +18,42 @@ import {
    TableHeader,
    TableRow,
 } from "@/components/ui/table";
-import type { AttendanceRecord } from "@/lib/types";
-import { clockIn } from "@/services/attendance";
 import { Clock, LogIn, LogOut, User } from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
 import { Fragment, useEffect, useState } from "react";
+import toast from "react-hot-toast";
+
+interface AttendanceRecord {
+   id: number;
+   clockIn: string;
+   clockOut: string | null;
+   totalHours: number | null;
+   createdAt: string;
+   updatedAt: string;
+}
+
+interface EmployeeData {
+   employee: {
+      id: string;
+      name: string;
+      email: string;
+      department: string;
+   };
+   records: AttendanceRecord[];
+   summary: {
+      totalRecords: number;
+      activeRecord: boolean;
+      completedRecords: number;
+      totalHoursWorked: number;
+   };
+}
 
 export default function AttendancePage() {
+   const { data: session, status } = useSession();
    const [currentTime, setCurrentTime] = useState(new Date());
-   const [clockedIn, setClockedIn] = useState(false);
-   const [attendanceRecords, setAttendanceRecords] = useState<
-      AttendanceRecord[]
-   >([]);
+   const [employeeData, setEmployeeData] = useState<EmployeeData | null>(null);
+   const [isLoading, setIsLoading] = useState(false);
+   const [error, setError] = useState("");
 
    // Update current time every second
    useEffect(() => {
@@ -39,17 +64,151 @@ export default function AttendancePage() {
       return () => clearInterval(timer);
    }, []);
 
-   const handleClockIn = async () => {
-      const newRecord: AttendanceRecord = {
-         clockIn: new Date().toISOString(),
-         employeeId: "ID",
-      };
+   // Fetch employee data when session is available
+   useEffect(() => {
+      if (session?.user?.id) {
+         fetchEmployeeData();
+      }
+   }, [session]);
 
-      const response = await clockIn(newRecord);
-      if (response) {
-         setClockedIn(true);
+   const fetchEmployeeData = async () => {
+      if (!session?.user?.id) return;
+
+      try {
+         const response = await fetch(
+            `/api/v1/employee/${session.user.id}/records`
+         );
+         if (response.ok) {
+            const data = await response.json();
+            setEmployeeData(data);
+         } else {
+            setError("Failed to fetch attendance data");
+            toast.error("Failed to fetch attendance data");
+         }
+      } catch (error) {
+         setError("Error fetching attendance data");
+         toast.error("Error fetching attendance data");
       }
    };
+
+   const handleClockIn = async () => {
+      if (!session?.user?.id) return;
+
+      setIsLoading(true);
+      setError("");
+
+      const clockInToast = toast.loading("Clocking in...");
+
+      try {
+         const response = await fetch("/api/v1/clock-in", {
+            method: "POST",
+            headers: {
+               "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+               employeeId: session.user.id,
+            }),
+         });
+
+         if (response.ok) {
+            const data = await response.json();
+            toast.success(
+               `Successfully clocked in at ${new Date().toLocaleTimeString()}`,
+               {
+                  id: clockInToast,
+               }
+            );
+            await fetchEmployeeData(); // Refresh data
+         } else {
+            const data = await response.json();
+            const errorMessage = data.message || "Clock in failed";
+            setError(errorMessage);
+            toast.error(errorMessage, {
+               id: clockInToast,
+            });
+         }
+      } catch (error) {
+         const errorMessage = "Error clocking in";
+         setError(errorMessage);
+         toast.error(errorMessage, {
+            id: clockInToast,
+         });
+      } finally {
+         setIsLoading(false);
+      }
+   };
+
+   const handleClockOut = async () => {
+      if (!session?.user?.id) return;
+
+      setIsLoading(true);
+      setError("");
+
+      const clockOutToast = toast.loading("Clocking out...");
+
+      try {
+         const response = await fetch("/api/v1/clock-out", {
+            method: "POST",
+            headers: {
+               "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+               employeeId: session.user.id,
+            }),
+         });
+
+         if (response.ok) {
+            const data = await response.json();
+            const hoursWorked = data.record?.hoursWorked || 0;
+            toast.success(
+               `Successfully clocked out! Hours worked: ${hoursWorked}h`,
+               {
+                  id: clockOutToast,
+               }
+            );
+            await fetchEmployeeData(); // Refresh data
+         } else {
+            const data = await response.json();
+            const errorMessage = data.message || "Clock out failed";
+            setError(errorMessage);
+            toast.error(errorMessage, {
+               id: clockOutToast,
+            });
+         }
+      } catch (error) {
+         const errorMessage = "Error clocking out";
+         setError(errorMessage);
+         toast.error(errorMessage, {
+            id: clockOutToast,
+         });
+      } finally {
+         setIsLoading(false);
+      }
+   };
+
+   const handleLogout = () => {
+      toast.success("Logging out...");
+      signOut({ callbackUrl: "/login" });
+   };
+
+   // Show loading while session is loading
+   if (status === "loading") {
+      return (
+         <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+               <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600 mx-auto"></div>
+               <p className="mt-4 text-gray-600">Loading...</p>
+            </div>
+         </div>
+      );
+   }
+
+   // Redirect to login if not authenticated
+   if (status === "unauthenticated") {
+      return null; // Middleware will handle redirect
+   }
+
+   const isClockedIn = employeeData?.summary.activeRecord || false;
 
    return (
       <Fragment>
@@ -64,12 +223,22 @@ export default function AttendancePage() {
                <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2 bg-muted p-2 rounded-md">
                      <User className="h-5 w-5" />
-                     <span className="font-medium">Robin</span>
-                     <span className="text-muted-foreground">(IT)</span>
+                     <span className="font-medium">{session?.user?.name}</span>
+                     <span className="text-muted-foreground">
+                        ({session?.user?.department})
+                     </span>
                   </div>
-                  <Button variant="outline">Logout</Button>
+                  <Button variant="outline" onClick={handleLogout}>
+                     Logout
+                  </Button>
                </div>
             </div>
+
+            {error && (
+               <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-red-600">{error}</p>
+               </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                <Card className="col-span-1">
@@ -101,24 +270,24 @@ export default function AttendancePage() {
                            size="lg"
                            className="flex items-center gap-2"
                            onClick={handleClockIn}
-                           disabled={clockedIn}>
+                           disabled={isClockedIn || isLoading}>
                            <LogIn className="h-5 w-5" />
-                           Clock In
+                           {isLoading ? "Processing..." : "Clock In"}
                         </Button>
                         <Button
                            size="lg"
-                           variant={clockedIn ? "default" : "outline"}
+                           variant={isClockedIn ? "default" : "outline"}
                            className="flex items-center gap-2"
-                           // onClick={handleClockOut}
-                           disabled={!clockedIn}>
+                           onClick={handleClockOut}
+                           disabled={!isClockedIn || isLoading}>
                            <LogOut className="h-5 w-5" />
-                           Clock Out
+                           {isLoading ? "Processing..." : "Clock Out"}
                         </Button>
                      </div>
                   </CardContent>
                   <CardFooter className="flex justify-center">
                      <p className="text-sm text-muted-foreground">
-                        {clockedIn
+                        {isClockedIn
                            ? "You are currently clocked in. Don't forget to clock out at the end of your shift."
                            : "You are currently clocked out. Click 'Clock In' when you start your shift."}
                      </p>
@@ -146,18 +315,31 @@ export default function AttendancePage() {
                         </TableRow>
                      </TableHeader>
                      <TableBody>
-                        {attendanceRecords.map((record) => (
-                           <TableRow>
-                              <TableCell>10</TableCell>
-                              <TableCell>{record.clockIn}</TableCell>
+                        {employeeData?.records.map((record) => (
+                           <TableRow key={record.id}>
                               <TableCell>
-                                 {record.clockOut || "Not clocked out"}
+                                 {new Date(record.clockIn).toLocaleDateString()}
                               </TableCell>
-                              <TableCell className="text-right">10</TableCell>
+                              <TableCell>
+                                 {new Date(record.clockIn).toLocaleTimeString()}
+                              </TableCell>
+                              <TableCell>
+                                 {record.clockOut
+                                    ? new Date(
+                                         record.clockOut
+                                      ).toLocaleTimeString()
+                                    : "Not clocked out"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                 {record.totalHours
+                                    ? `${record.totalHours}h`
+                                    : "-"}
+                              </TableCell>
                            </TableRow>
                         ))}
                      </TableBody>
-                     {attendanceRecords.length === 0 && (
+                     {(!employeeData?.records ||
+                        employeeData.records.length === 0) && (
                         <TableCaption>
                            No attendance records found.
                         </TableCaption>
@@ -165,6 +347,47 @@ export default function AttendancePage() {
                   </Table>
                </CardContent>
             </Card>
+
+            {employeeData && (
+               <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                     <CardContent className="pt-6">
+                        <div className="text-center">
+                           <p className="text-2xl font-bold">
+                              {employeeData.summary.totalRecords}
+                           </p>
+                           <p className="text-muted-foreground">
+                              Total Records
+                           </p>
+                        </div>
+                     </CardContent>
+                  </Card>
+                  <Card>
+                     <CardContent className="pt-6">
+                        <div className="text-center">
+                           <p className="text-2xl font-bold">
+                              {employeeData.summary.completedRecords}
+                           </p>
+                           <p className="text-muted-foreground">
+                              Completed Sessions
+                           </p>
+                        </div>
+                     </CardContent>
+                  </Card>
+                  <Card>
+                     <CardContent className="pt-6">
+                        <div className="text-center">
+                           <p className="text-2xl font-bold">
+                              {employeeData.summary.totalHoursWorked}h
+                           </p>
+                           <p className="text-muted-foreground">
+                              Total Hours Worked
+                           </p>
+                        </div>
+                     </CardContent>
+                  </Card>
+               </div>
+            )}
          </div>
       </Fragment>
    );

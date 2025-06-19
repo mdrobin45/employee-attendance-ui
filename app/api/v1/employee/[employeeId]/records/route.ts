@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const GET = async (
    request: NextRequest,
-   { params }: { params: { employeeId: string } }
+   { params }: { params: Promise<{ employeeId: string }> }
 ) => {
    try {
-      const { employeeId } = params;
+      const { employeeId } = await params;
 
       // Validate employeeId parameter
       if (!employeeId) {
