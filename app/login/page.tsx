@@ -1,10 +1,25 @@
 "use client";
 
+import type React from "react";
+
+import logo from "@/assets/wwg_logo_horizontal.webp";
+import { Button } from "@/components/ui/button";
+import {
+   Card,
+   CardContent,
+   CardDescription,
+   CardFooter,
+   CardHeader,
+   CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { signIn } from "next-auth/react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export default function LoginPage() {
+export default function Component() {
    const [employeeId, setEmployeeId] = useState("");
    const [password, setPassword] = useState("");
    const [isLoading, setIsLoading] = useState(false);
@@ -37,66 +52,67 @@ export default function LoginPage() {
    };
 
    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-         <div className="max-w-md w-full space-y-8">
-            <div>
-               <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                  Employee Login
-               </h2>
-               <p className="mt-2 text-center text-sm text-gray-600">
-                  Sign in to your attendance account
-               </p>
-            </div>
-            <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-               <div className="rounded-md shadow-sm -space-y-px">
-                  <div>
-                     <label htmlFor="employeeId" className="sr-only">
-                        Employee ID
-                     </label>
-                     <input
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+         <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+               <div className="flex justify-center mb-4">
+                  <Image
+                     width={200}
+                     height={100}
+                     src={logo}
+                     alt="Way Wise Global"
+                  />
+               </div>
+               <CardTitle className="text-2xl font-bold">
+                  Daily Attendance
+               </CardTitle>
+               <CardDescription>
+                  Enter your employee credentials to access your account
+               </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleSubmit}>
+               <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                     <Label htmlFor="employeeId">Employee ID</Label>
+                     <Input
+                        value={employeeId}
+                        onChange={(e) => setEmployeeId(e.target.value)}
                         id="employeeId"
                         name="employeeId"
                         type="text"
+                        placeholder="e.g., WWT123"
                         required
-                        className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                        placeholder="Employee ID (e.g., WWT408)"
-                        value={employeeId}
-                        onChange={(e) => setEmployeeId(e.target.value)}
                      />
                   </div>
-                  <div>
-                     <label htmlFor="password" className="sr-only">
-                        Password
-                     </label>
-                     <input
+                  <div className="space-y-2">
+                     <Label htmlFor="password">Password</Label>
+                     <Input
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         id="password"
                         name="password"
                         type="password"
+                        placeholder="Enter your password"
                         required
-                        className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
                      />
                   </div>
-               </div>
+                  {error && <div className="text-red-600 text-sm">{error}</div>}
+               </CardContent>
 
-               {error && (
-                  <div className="text-red-600 text-sm text-center">
-                     {error}
-                  </div>
-               )}
-
-               <div>
-                  <button
-                     type="submit"
-                     disabled={isLoading}
-                     className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
+               <CardFooter className="flex flex-col space-y-4">
+                  <Button disabled={isLoading} type="submit" className="w-full">
                      {isLoading ? "Signing in..." : "Sign in"}
-                  </button>
-               </div>
+                  </Button>
+                  <div className="text-center">
+                     <a
+                        href="#"
+                        className="text-sm text-blue-600 hover:underline">
+                        Forgot your password?
+                     </a>
+                  </div>
+               </CardFooter>
             </form>
-         </div>
+         </Card>
       </div>
    );
 }
