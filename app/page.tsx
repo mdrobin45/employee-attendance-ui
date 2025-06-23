@@ -23,6 +23,20 @@ import { signOut, useSession } from "next-auth/react";
 import { Fragment, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+// Utility function to convert decimal hours to hours and minutes
+const formatHoursToHoursMinutes = (decimalHours: number): string => {
+   const hours = Math.floor(decimalHours);
+   const minutes = Math.round((decimalHours - hours) * 60);
+
+   if (hours === 0) {
+      return `${minutes}m`;
+   } else if (minutes === 0) {
+      return `${hours}h`;
+   } else {
+      return `${hours}h ${minutes}m`;
+   }
+};
+
 interface AttendanceRecord {
    id: number;
    clockIn: string;
@@ -159,9 +173,11 @@ export default function AttendancePage() {
 
          if (response.ok) {
             const data = await response.json();
-            const hoursWorked = data.record?.hoursWorked || 0;
+            const hoursWorked = data.record?.totalHours || 0;
             toast.success(
-               `Successfully clocked out! Hours worked: ${hoursWorked}h`,
+               `Successfully clocked out! Hours worked: ${formatHoursToHoursMinutes(
+                  hoursWorked
+               )}`,
                {
                   id: clockOutToast,
                }
@@ -332,7 +348,9 @@ export default function AttendancePage() {
                               </TableCell>
                               <TableCell className="text-right">
                                  {record.totalHours
-                                    ? `${record.totalHours}h`
+                                    ? formatHoursToHoursMinutes(
+                                         record.totalHours
+                                      )
                                     : "-"}
                               </TableCell>
                            </TableRow>
@@ -378,7 +396,9 @@ export default function AttendancePage() {
                      <CardContent className="pt-6">
                         <div className="text-center">
                            <p className="text-2xl font-bold">
-                              {employeeData.summary.totalHoursWorked}h
+                              {formatHoursToHoursMinutes(
+                                 employeeData.summary.totalHoursWorked
+                              )}
                            </p>
                            <p className="text-muted-foreground">
                               Total Hours Worked
